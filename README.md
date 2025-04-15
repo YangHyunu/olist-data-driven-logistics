@@ -65,7 +65,10 @@
 
 ---
 ## 전처리
-  - 코드 : (https://github.com/YangHyunu/olist-data-driven-logistics/tree/main/preprocessing_analysis)
+전처리 및 데이터 통합은 대용량 처리 성능을 고려하여 **PySpark** 스크립트를 작성하였으며,
+분석 및 시각화는 Spark SQL과 Pandas를 병행해 효율적으로 수행하였습니다.
+  - Pyspark 코드: https://github.com/YangHyunu/olist-data-driven-logistics/tree/main/script
+  - Pandas와 SparkSQL 코드 : (https://github.com/YangHyunu/olist-data-driven-logistics/tree/main/preprocessing_analysis)
   - 설명 : [https://www.notion.so/1a1cd66266a0806e8960e453cb90d3e3](https://heathered-citron-b6f.notion.site/1a1cd66266a0806e8960e453cb90d3e3?pvs=4)
 
 #### 전처리 예시
@@ -86,12 +89,19 @@ Random Forest Classifier를 사용해 올바른 지역 정보를 예측 하여 �
 ### ▪️ 감성 분석 (RoBERTa 모델 활용)  
 - 다국어 리뷰 감성 분석: Huggingface RoBERTa fine-tuned 모델 사용
   -  XLM-Roberta 모델을 포르투갈어 트위터/X로 학습한 모델이라 리뷰데이터 감성분석에서 제 성능을 보이지 못했음
-  -  과도한 어근추출을 완화하여 단어의 원래 의미를 보존하여 해결결
+  -  과도한 어근추출을 완화하여 단어의 원래 의미를 보존하여 해결
+    
 - 배송 관련 키워드 기반 감정 분석 → **긍/부정 리뷰 점수 차이 명확**  
   - 빠른 배송 리뷰 평균 **4.84점**
   - 배송 지연 리뷰 평균 **1.83점**
 
+- → **빠른 배송 리뷰는 배송 지연 리뷰보다 점수가 약 2.6배 높음**
 
+> ✅ 배송일 차이는 약 ±2일 수준이지만,
+> 
+> 
+> → **리뷰 점수는 4.84 vs 1.83으로 약 2.6배 차이 발생**
+>
 ![image](https://github.com/user-attachments/assets/9bd83231-c640-4813-a1d9-64592aa6e557)
 <p float="left">
   <img src="https://github.com/user-attachments/assets/df22b9f8-3285-447e-b801-0f3aeeccebc2" width="45%" />
@@ -107,14 +117,31 @@ Random Forest Classifier를 사용해 올바른 지역 정보를 예측 하여 �
 
 - 판매자-고객 거리 및 물류 경로 → **배송 지연 핵심 요인**  
 - **북부/중서부 지역** 배송 지연 심각
+### **지역별 배송 시간 차이**
 
+- **중서부 → 북부/북동부**: 총 배송 **18~20일 이상**
+- **북부 지역 평균**: **13일 이상** → 전체 평균보다 **+5일**
+
+---
+
+### 배송 지연과 리뷰 점수 분석**
+
+**> 주요 인사이트**
+
+1. **빠른 배송은 고객 만족도를 높이고, 지연 및 미수령은 부정적 평가를 유발하는 핵심 요인임**.
+
+- 부정키워드 (지연,오배송)이 있을경우 리뷰 점수가 2점 이하로 떨어짐.
+- 배송 시간이 **1.5일 이상 단축될 경우 리뷰 점수가 증가하는 경향을 보임**
 <p float="left">
   <img src="https://github.com/user-attachments/assets/669592b7-fd84-4935-8fcf-2e9df17970a8" width="45%" />
   <img src="https://github.com/user-attachments/assets/fd680ea3-c0f3-4fd6-bf8e-4b82b5c58a80" width="45%" />
 </p>
 
+2. **따라서 고객 만족도를 높이기 위해서는 배송 지연 원인 개선이 핵심요인**
 ---
 ##  머신러닝 분석 및 변수 도출
+단순 거리 외에도 어떤 요인이 실제 배송 시간과 리뷰 점수에 영향을 미치는지 확인하기 위해
+→ TabNet, XGB, RF 등으로 변수 중요도 분석을 수행함.
 
 ### ▪️ 모델 및 분석 방식
 
@@ -128,9 +155,10 @@ Random Forest Classifier를 사용해 올바른 지역 정보를 예측 하여 �
 
 | 변수                   | 설명                                        | 중요도 |
 |------------------------|---------------------------------------------|--------|
+| `delay_flag_avg`     | 평균배송기간보다 지연 여부                       | ★★★★★ |
 | `carrier_to_customer`  | 물류회사 → 고객 배송 시간                   | ★★★★★ |
 | `customer_lat/lng`     | 고객 위경도 데이터                         | ★★★★☆ |
-| `freight_value`        | 배송비                                     | ★★★☆☆ |
+| `seller_to_carrier`        | 판매자 -> 물류회사                                    | ★★☆☆☆ |
 
 <p float="left">
   <img src="https://github.com/user-attachments/assets/db8dbc61-ff0d-4c8e-884e-2cd01346a64c" width="45%" />
@@ -142,10 +170,15 @@ Random Forest Classifier를 사용해 올바른 지역 정보를 예측 하여 �
   <img src="https://github.com/user-attachments/assets/69ed9876-e137-43f0-9e00-c9a0324c93d8" width="45%" />
 </p>
 
+### 결과, carrier_to_customer (물류회사 → 고객 배송시간)가 공통적으로 가장 중요한 변수로 도출됨
+  따라서, 물류회사 위치 최적화가 배송 지연 해소의 핵심 해결책이라는 결론 도출
+
+
 ---
 
 ## 📍 물류센터 위치 최적화 및 효과
 ### carrier to customer 를 줄이기 위해 , 물류센터의 위치와 고객간의 거리를 최소화하는것을 목표로 함
+### 또한 실제 물류회사의 위치를 보정후 실제 배송기간 데이터를 얻을 수 없으므로, K-means를 사용하여 보정한 데이터를 입력하여 위에서 사용한 TabNet을 바탕으로 보정 이전과 이후의 배송기간 차이를 바탕으로 시뮬레이션을 했음
 ![image](https://github.com/user-attachments/assets/f0ad168b-860c-4252-a857-944049fea357)
 
 ---
@@ -159,10 +192,10 @@ Random Forest Classifier를 사용해 올바른 지역 정보를 예측 하여 �
 2. **주문 수량(quantity)을 가중치**로 거리 차이 최소화 → 물류 허브 최적화
 ![image](https://github.com/user-attachments/assets/190f2435-22c3-4637-b182-fa35d623a673)
 
-Q: "각 주(State)마다 물류센터를 두는 것이 정말 최적인가?"
+#### Q: "각 주(State)마다 물류센터를 두는 것이 정말 최적인가?"
 > 경우에 따라 특정 주(State)들이 가까운 위치에 있을 수 있음. 예를 들어, SP(상파울루)와 RJ(리우데자네이루)는 가까우므로 하나의 물류센터로 통합하는 것이 더 효율적일 수도 있음.
 
-A : K-Means 클러스터링을 활용하여 물류센터 개수를 최적화.
+#### A : K-Means 클러스터링을 활용하여 물류센터 개수를 최적화.
 3. **Elbow Method**로 최적 클러스터 수(K=5) 결정  
 ![image](https://github.com/user-attachments/assets/44f7797d-cc8e-4da7-9640-974ad7c74594)
 
@@ -193,6 +226,11 @@ A : K-Means 클러스터링을 활용하여 물류센터 개수를 최적화.
 | 물류센터 위치 최적화 이전 | 물류센터 위치 최적화 이후 |
 |------------------------|-------------------------|
 | ![image](https://github.com/user-attachments/assets/b6ff6b51-c805-4418-a59d-9453fb1510ef)| ![image](https://github.com/user-attachments/assets/9994ca24-4d95-4b0d-83ab-b98e12bc85e8)|
+ 
+물류센터 위치 재배치 후, ML 모델로 배송 시간 재예측
+- 평균 배송일 1.19일 단축 (9.3%)
+- 특히 북부·중서부 지역에서 개선 효과 두드러짐
+
 
 ---
 ##  기술 스택 및 활용 방식
